@@ -1,4 +1,5 @@
 from telethon import TelegramClient, types
+from telethon.sessions import StringSession
 from telethon.tl.types import BotCommand
 from telethon.tl.functions.bots import SetBotCommandsRequest
 from models.models import init_db
@@ -61,7 +62,14 @@ def clear_temp_dir():
 
 
 # 创建客户端
-user_client = TelegramClient('./sessions/user', api_id, api_hash)
+# 尝试从环境变量读取 session 字符串，避免首次交互登录
+user_session_str = os.getenv('USER_SESSION_STRING')
+if user_session_str:
+    user_client = TelegramClient(StringSession(user_session_str), api_id, api_hash)
+    print("使用环境变量中的 session 字符串")
+else:
+    user_client = TelegramClient('./sessions/user', api_id, api_hash)
+    print("使用本地 session 文件")
 bot_client = TelegramClient('./sessions/bot', api_id, api_hash)
 
 # 初始化数据库
@@ -85,6 +93,11 @@ async def start_clients():
     try:
         # 启动用户客户端
         await user_client.start(phone=phone_number)
+        if user_session_str:
+    # 有 session 字符串时，直接连接，无需手机号
+            await user_client.start()
+        else:
+            await user_client.start(phone=phone_number)
         me_user = await user_client.get_me()
         print(f'用户客户端已启动: {me_user.first_name} (@{me_user.username})')
 
